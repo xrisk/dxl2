@@ -1,89 +1,55 @@
-import dynamixel_sdk as dxl
-import logging
-from time import sleep
+import dynamixel_sdk as sdk
+from connection import Connection
+from register import Instruction, AX, MX
+from typing import Union
+from enum import Enum
 
-import control_table
 
-
-def constrain(val, lo, hi):
-    """Constrains `val` to the range [lo, hi]"""
-    if val < lo:
-        return lo
-    elif val > hi:
-        return hi
-    return val
+class MotorType(Enum):
+    AX = 1
+    MX = 1
 
 
 class Motor:
-
-    BAUDRATE = 1_000_000
-    PROTOCOL_VERSION = 1.0
-    opened = False
-
-    def __init__(self, id, port, type="AX"):
-        self.portHandler = dxl.PortHandler(port)
-        self.packetHandler = dxl.PacketHandler(self.PROTOCOL_VERSION)
+    def __init__(self, id: int, type: MotorType, conn: Connection, protocol_ver: int):
         self.id = id
-        self.port = port
-        self.ctrl = control_table.ControlTable(type)
         self.type = type
+        self.conn = conn
+        self.protocol_version = protocol_ver
+        self.packet_handler = sdk.PacketHandler(self.protocol_version)
 
-        if self.portHandler.openPort():
-            logging.info(f"Motor#{id} opened on port #{port}")
-            self.opened = True
+    def write(self, instruction: Instruction, value: int):
+        if self.type == MotorType.AX:
+            addr, l = AX.get(instruction)
+        elif self.type == MotorType.MX:
+            addr, l = MX.get(instruction)
         else:
-            logging.error(f"Motor #{id} failed to open on port #{port}")
+            raise Exception("Unsupported Motor type {}")
 
-        self._set_baud_rate()
+        if l == 1:
+            self.packet_handler.write1ByteTxRx(
+                self.conn.port_handler, self.id, addr, value
+            )
+        elif l == 2:
+            self.packet_handler.write2ByteTxRx(
+                self.conn.port_handler, self.id, addr, value
+            )
+        elif l == 4:
+            self.packet_handler.write4ByteTxRx(
+                self.conn.port_handler, self.id, addr, value
+            )
 
-    def _set_baud_rate(self):
-        if not self.portHandler.setBaudRate(self.BAUDRATE):
-            logging.error(f"setBaudRate failed on Motor #{id} - Port #{self.port}")
-            self.opened = False
-
-    def _validate_response(self, res, err):
-        if res != dxl.COMM_SUCCESS:
-            print("%s" % self.packetHandler.getTxRxResult(res))
-        elif err != 0:
-            print("%s" % self.packetHandler.getRxPacketError(err))
+    def read(self, instruction: Instruction) -> int:
+        if self.type == MotorType.AX:
+            addr, l = AX.get(instruction)
+        elif self.type == MotorType.MX:
+            addr, l = MX.get(instruction)
         else:
-            return True
-        self.opened = False
-        return False
+            raise Exception("Unsupported Motor type {}")
 
-    def set_torque(self, val: bool):
-        res, err = self.packetHandler.write1ByteTxRx(
-            self.portHandler,
-            self.id,
-            self.ctrl.regnum("TORQUE_ENABLE"),
-            1 if val else 0,
-        )
-        self._validate_response(res, err)
-
-    def move(self, pos):
-        pos = constrain(pos, 0, 1023)
-        res, err = self.packetHandler.write2ByteTxRx(
-            self.portHandler, self.id, self.ctrl.regnum("GOAL_POSITION"), pos
-        )
-        self._validate_response(res, err)
-
-    def get_current_position(self):
-        pos, res, err = self.packetHandler.read4ByteTxRx(
-            self.portHandler, self.id, self.ctrl.regnum("CURRENT_POSITION")
-        )
-        self._validate_response(res, err)
-        return pos
-
-    def set_speed(self, pos):
-        pos = constrain(pos, 0, 1023)
-        res, err = self.packetHandler.write2ByteTxRx(
-            self.portHandler, self.id, self.ctrl.regnum("MOVING_SPEED"), pos
-        )
-        self._validate_response(res, err)
-
-
-if __name__ == "__main__":
-    m = Motor(4, "/dev/cu.usbserial-A5052NHF")
-    m._set_baud_rate()
-    m.set_speed(300)
-    m.move(512)
+        if l == 1:
+            self.packet_handler.read1ByteTxRx(self.conn.port_handler, self.id, addr)
+        elif l == 2:
+            self.packet_handler.read2ByteTxRx(self.conn.port_handler, self.id, addr)
+        elif l == 4:
+            self.packet_handler.read4ByteTxRx(self.conn.port_handler, self.id, addr)
