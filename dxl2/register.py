@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Tuple, Dict, List
 
 
 class Instruction(Enum):
@@ -57,13 +58,20 @@ class Instruction(Enum):
     PUNCH_H = 53
 
 
-AX = {
-    Instruction.MODEL_NUMBER_L: 0,
-    Instruction.MODEL_NUMBER_H: 1,
-    Instruction.MODEL_NUMBER: (1, 0),
-    Instruction.TORQUE_ENABLE: 24,
+AX: Dict[Instruction, List[int]] = {
+    Instruction.MODEL_NUMBER_L: [0],
+    Instruction.MODEL_NUMBER_H: [1],
+    Instruction.MODEL_NUMBER: [1, 0],
+    Instruction.TORQUE_ENABLE: [24],
     Instruction.GOAL_POSITION: [31, 30],
     Instruction.MOVING_SPEED: [33, 32],
 }
 
-MX = {}
+MX: Dict[Instruction, List[int]] = {
+    Instruction.MODEL_NUMBER_L: [0],
+    Instruction.MODEL_NUMBER_H: [1],
+    Instruction.MODEL_NUMBER: [1, 0],
+    Instruction.TORQUE_ENABLE: [24],
+    Instruction.GOAL_POSITION: [31, 30],
+    Instruction.MOVING_SPEED: [33, 32],
+}
