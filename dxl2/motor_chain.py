@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple, Any
 
 import dynamixel_sdk as sdk
 
@@ -26,13 +26,19 @@ class MotorChain:
         self.motors.extend(m)
 
     def _update_homogenous(self) -> None:
-        self.homogenous = len(set(m.type for m in self.motors)) == 1
+        self.homogenous = len(set(m.protocol_version for m in self.motors)) == 1
 
-    def write_one_motor(self, Instruction: Instruction, id: int, val: int) -> bool:
-        pass
+    def write_one_motor(
+        self, instruction: Instruction, id: int, val: int
+    ) -> Tuple[Any, Any]:
+        for m in self.motors:
+            if m.id == id:
+                return m.write(instruction, val)
+        raise RuntimeError(f"Motor id {id} not found for write_one_motor")
 
     def write_one_value(self, instruction: Instruction, vals: int) -> bool:
-        raise NotImplementedError
+        # if self.homogenous:
+        pass
 
     def write_many_values(self, instruction: Instruction, vals: Dict[int, int]) -> bool:
         if self.homogenous:
